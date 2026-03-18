@@ -4,7 +4,7 @@ import requests
 import time
 from datetime import datetime, time as dt_time
 
-print("🚀 PRO STRATEGY V4 TEST MODE STARTED")
+print("🚀 PRO STRATEGY V5 (GITHUB READY)")
 
 # =============================
 # TELEGRAM SETTINGS
@@ -22,13 +22,26 @@ def send_telegram(msg):
         print("Telegram Error:", e)
 
 # =============================
-# LIVE PRICE FUNCTION (IMPROVED)
+# SAFE FLOAT (FIX ERROR)
+# =============================
+
+def safe_float(val):
+    try:
+        if isinstance(val, pd.Series):
+            return float(val.iloc[0])
+        return float(val)
+    except:
+        return None
+
+# =============================
+# LIVE PRICE FUNCTION
 # =============================
 
 def get_live_price(symbol):
     try:
         data = yf.Ticker(symbol)
-        return data.fast_info.get("lastPrice", None)
+        price = data.fast_info.get("lastPrice", None)
+        return safe_float(price)
     except:
         return None
 
@@ -58,6 +71,7 @@ stocks = [
 # TELECOM
 "BHARTIARTL.NS","JIOFIN.NS"
 ]
+
 
 # =============================
 # INDICATORS
@@ -89,172 +103,125 @@ last_candle_time = None
 total_profit = 0
 total_loss = 0
 
-send_telegram("🚀 PRO STRATEGY V4 STARTED (TEST MODE)")
+send_telegram("🚀 BOT STARTED (TEST MODE)")
 
 # =============================
-# WAIT FUNCTION
+# MAIN EXECUTION (RUN ONCE)
 # =============================
 
-def wait_for_next_candle():
-    now = datetime.now()
-    seconds = 300 - (now.minute % 5) * 60 - now.second
-    time.sleep(seconds + 2)
+now_time = datetime.now().time()
 
-# =============================
-# MAIN LOOP
-# =============================
+# MARKET TIME CONTROL
+if now_time < dt_time(9,15):
+    print("⏳ Before market open. Skipping.")
+    exit()
 
-for _ in range(1):
+if now_time > dt_time(15,30):
+    print("🛑 Market closed. Skipping.")
+    exit()
 
-    now_time = datetime.now().time()
+# DAILY LOSS CONTROL
+if (total_profit + total_loss) <= MAX_DAILY_LOSS:
+    send_telegram("🛑 Max daily loss reached. Stopping bot.")
+    exit()
 
-    # MARKET TIME CONTROL
-    if now_time < dt_time(9,15):
-        print("⏳ Waiting for market open...")
-        time.sleep(60)
-        continue
+try:
+    print("\n📊 Checking:", datetime.now())
 
-    if now_time > dt_time(15,30):
-        print("🛑 Market Closed. Stopping bot.")
-        send_telegram("🛑 Market Closed. Bot Stopped.")
-        break
+    # =============================
+    # NIFTY TREND
+    # =============================
 
-    # DAILY LOSS CONTROL
-    if (total_profit + total_loss) <= MAX_DAILY_LOSS:
-        send_telegram("🛑 Max daily loss reached. Stopping bot.")
-        break
+    nifty = yf.download("^NSEI", period="5d", interval="5m", progress=False)
 
-    try:
-        print("\n📊 Checking:", datetime.now())
+    if nifty.empty or len(nifty) < 200:
+        print("No NIFTY data")
+        exit()
 
-        nifty = yf.download("^NSEI", period="5d", interval="5m", progress=False)
+    nifty["EMA200"] = ema(nifty["Close"], 200)
 
-        if nifty.empty:
-            wait_for_next_candle()
+    current_candle_time = nifty.index[-1]
+
+    nifty_price = safe_float(nifty["Close"].iloc[-1])
+    nifty_ema = safe_float(nifty["EMA200"].iloc[-1])
+
+    if nifty_price is None or nifty_ema is None:
+        exit()
+
+    market_bull = nifty_price > nifty_ema
+    market_bear = nifty_price < nifty_ema
+
+    print("NIFTY:", round(nifty_price,2), "| EMA200:", round(nifty_ema,2))
+
+    # =============================
+    # STOCK SCAN
+    # =============================
+
+    for stock in stocks:
+
+        if len(positions) >= MAX_TRADES:
+            break
+
+        df = yf.download(stock, period="5d", interval="5m", progress=False)
+
+        if df.empty:
             continue
 
-        nifty["EMA200"] = ema(nifty["Close"], 200)
+        df["EMA20"] = ema(df["Close"], 20)
+        df["EMA50"] = ema(df["Close"], 50)
+        df["ATR"] = atr(df)
+        df["VOL_AVG"] = df["Volume"].rolling(20).mean()
 
-        if len(nifty) < 200:
-            wait_for_next_candle()
+        df = df.dropna()
+
+        if len(df) < 2:
             continue
 
-        current_candle_time = nifty.index[-1]
+        row = df.iloc[-1]
+        prev = df.iloc[-2]
 
-        if current_candle_time == last_candle_time:
-            wait_for_next_candle()
+        price = get_live_price(stock)
+        if price is None:
             continue
 
-        last_candle_time = current_candle_time
+        ema20 = safe_float(row["EMA20"])
+        ema50 = safe_float(row["EMA50"])
+        prev_ema20 = safe_float(prev["EMA20"])
+        prev_ema50 = safe_float(prev["EMA50"])
+        atr_val = safe_float(row["ATR"])
+        volume = safe_float(row["Volume"])
+        avg_vol = safe_float(row["VOL_AVG"])
 
-        nifty_price = float(nifty["Close"].iloc[-1])
-        nifty_ema = float(nifty["EMA200"].iloc[-1])
+        if None in [ema20, ema50, prev_ema20, prev_ema50, atr_val, volume, avg_vol]:
+            continue
 
-        market_bull = nifty_price > nifty_ema
-        market_bear = nifty_price < nifty_ema
+        candle_body = abs(row["Close"] - row["Open"])
+        candle_range = row["High"] - row["Low"]
+        strong_candle = candle_body > candle_range * 0.6
 
-        print("NIFTY:", nifty_price, "| EMA200:", nifty_ema)
+        risk_per_trade = equity * 0.01
 
-        for stock in stocks:
+        if atr_val == 0:
+            continue
 
-            if len(positions) >= MAX_TRADES:
-                break
+        qty = int(risk_per_trade / (atr_val * 1.5))
+        if qty <= 0:
+            continue
 
-            df = yf.download(stock, period="5d", interval="5m", progress=False)
+        # ENTRY
+        if stock not in positions and volume > avg_vol * 1.2:
 
-            if df.empty:
-                continue
+            if (prev_ema20 <= prev_ema50 and ema20 > ema50 and
+                price > ema20 and price > ema50 and strong_candle and market_bull):
 
-            df["EMA20"] = ema(df["Close"], 20)
-            df["EMA50"] = ema(df["Close"], 50)
-            df["ATR"] = atr(df)
-            df["VOL_AVG"] = df["Volume"].rolling(20).mean()
+                send_telegram(f"📈 LONG {stock} @ {round(price,2)} Qty:{qty}")
 
-            df = df.dropna()
+            elif (prev_ema20 >= prev_ema50 and ema20 < ema50 and
+                  price < ema20 and price < ema50 and strong_candle and market_bear):
 
-            if len(df) < 2:
-                continue
+                send_telegram(f"📉 SHORT {stock} @ {round(price,2)} Qty:{qty}")
 
-            row = df.iloc[-1]
-            prev = df.iloc[-2]
+    print(f"✅ Scan Complete")
 
-            price = get_live_price(stock)
-            if price is None:
-                continue
-
-            ema20 = row["EMA20"]
-            ema50 = row["EMA50"]
-            prev_ema20 = prev["EMA20"]
-            prev_ema50 = prev["EMA50"]
-            atr_val = row["ATR"]
-            volume = row["Volume"]
-            avg_vol = row["VOL_AVG"]
-
-            candle_body = abs(row["Close"] - row["Open"])
-            candle_range = row["High"] - row["Low"]
-
-            strong_candle = candle_body > candle_range * 0.6
-
-            risk_per_trade = equity * 0.01
-
-            if atr_val == 0:
-                continue
-
-            qty = int(risk_per_trade / (atr_val * 1.5))
-            if qty <= 0:
-                continue
-
-            # ENTRY
-            if stock not in positions and volume > avg_vol * 1.2:
-
-                if (prev_ema20 <= prev_ema50 and ema20 > ema50 and
-                    price > ema20 and price > ema50 and strong_candle and market_bull):
-
-                    positions[stock] = {"type": "LONG", "entry": price, "stop": price - atr_val * 1.5, "qty": qty}
-
-                    send_telegram(f"📈 LONG {stock} @ {round(price,2)} Qty:{qty}")
-
-                elif (prev_ema20 >= prev_ema50 and ema20 < ema50 and
-                      price < ema20 and price < ema50 and strong_candle and market_bear):
-
-                    positions[stock] = {"type": "SHORT", "entry": price, "stop": price + atr_val * 1.5, "qty": qty}
-
-                    send_telegram(f"📉 SHORT {stock} @ {round(price,2)} Qty:{qty}")
-
-            # EXIT
-            elif stock in positions:
-
-                pos = positions[stock]
-
-                if pos["type"] == "LONG":
-                    new_stop = price - atr_val * 1.2
-                    pos["stop"] = max(pos["stop"], new_stop)
-
-                    if price <= pos["stop"]:
-                        pnl = (price - pos["entry"]) * pos["qty"]
-                        equity += pnl
-                        total_profit += max(pnl, 0)
-                        total_loss += min(pnl, 0)
-
-                        send_telegram(f"❌ EXIT LONG {stock} PnL: ₹{round(pnl,2)}")
-                        del positions[stock]
-
-                elif pos["type"] == "SHORT":
-                    new_stop = price + atr_val * 1.2
-                    pos["stop"] = min(pos["stop"], new_stop)
-
-                    if price >= pos["stop"]:
-                        pnl = (pos["entry"] - price) * pos["qty"]
-                        equity += pnl
-                        total_profit += max(pnl, 0)
-                        total_loss += min(pnl, 0)
-
-                        send_telegram(f"❌ EXIT SHORT {stock} PnL: ₹{round(pnl,2)}")
-                        del positions[stock]
-
-        print(f"💰 Equity: {round(equity,2)} | Net: {round(total_profit+total_loss,2)}")
-
-    except Exception as e:
-        print("Error:", e)
-
-    wait_for_next_candle()
+except Exception as e:
+    print("❌ Error:", e)
