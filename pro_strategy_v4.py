@@ -104,7 +104,7 @@ def wait_for_next_candle():
 # MAIN LOOP
 # =============================
 
-while True:
+for _ in range(1):
 
     now_time = datetime.now().time()
 
