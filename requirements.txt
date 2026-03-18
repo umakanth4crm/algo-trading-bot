@@ -1,5 +1,6 @@
-pytz
-yfinance
 pandas
 numpy
 requests
+pyotp
+smartapi-python
+logzero
