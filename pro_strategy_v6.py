@@ -115,7 +115,7 @@ def get_ltp(symbol, token):
 
 def get_candles(token):
     try:
-        import pytz
+        
         ist = pytz.timezone("Asia/Kolkata")
         now = datetime.now(ist)
 
