@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 from datetime import datetime, time as dt_time
 import os
+import pytz
 
 print("🚀 PRO STRATEGY V6 (GITHUB VERSION)")
 
@@ -40,6 +41,7 @@ session = obj.generateSession(CLIENT_ID, PASSWORD, totp)
 
 if session['status']:
     print("✅ Login Success")
+    send_telegram("🤖 Bot Started Successfully")
 else:
     print("❌ Login Failed")
     print(session)
@@ -113,14 +115,20 @@ def get_ltp(symbol, token):
 
 def get_candles(token):
     try:
+        import pytz
+        ist = pytz.timezone("Asia/Kolkata")
+        now = datetime.now(ist)
+
         params = {
             "exchange": "NSE",
             "symboltoken": token,
             "interval": "FIVE_MINUTE",
-            "fromdate": (datetime.now() - pd.Timedelta(days=5)).strftime('%Y-%m-%d %H:%M'),
-            "todate": datetime.now().strftime('%Y-%m-%d %H:%M')
+            "fromdate": (now - pd.Timedelta(days=5)).strftime('%Y-%m-%d %H:%M'),
+            "todate": now.strftime('%Y-%m-%d %H:%M')
         }
+
         data = obj.getCandleData(params)
+
         df = pd.DataFrame(
             data["data"],
             columns=["Datetime","Open","High","Low","Close","Volume"]
@@ -132,7 +140,11 @@ def get_candles(token):
 # =============================
 # MARKET TIME CHECK
 # =============================
-now_time = datetime.now().time()
+
+
+
+ist = pytz.timezone("Asia/Kolkata")
+now_time = datetime.now(ist).time()
 
 if now_time < dt_time(9, 15) or now_time > dt_time(15, 30):
     print("⏳ Market Closed")
@@ -161,6 +173,8 @@ for stock, token in stocks.items():
     price = get_ltp(stock, token)
     if price is None:
         continue
+
+    print(f"{stock} | Price: {price} | EMA20: {row['EMA20']:.2f} | EMA50: {row['EMA50']:.2f}")
 
     atr_val = row["ATR"]
     if atr_val == 0:
