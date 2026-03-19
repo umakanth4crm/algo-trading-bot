@@ -24,14 +24,14 @@ def send_telegram(msg):
 # ANGEL LOGIN
 # =============================
 
-# API_KEY = "Wq2v3ZKT"
-# CLIENT_ID = "S60015476"
-# PASSWORD = "2121"
-# TOTP_SECRET = "XB6VHHUUTT7CEPQKCWFWXNSEVU"
-API_KEY = os.getenv("Wq2v3ZKT")
-CLIENT_ID = os.getenv("S60015476")
-PASSWORD = os.getenv("2121")
-TOTP_SECRET = os.getenv("XB6VHHUUTT7CEPQKCWFWXNSEVU")
+API_KEY = "Wq2v3ZKT"
+CLIENT_ID = "S60015476"
+PASSWORD = "2121"
+TOTP_SECRET = "XB6VHHUUTT7CEPQKCWFWXNSEVU"
+# API_KEY = os.getenv("Wq2v3ZKT")
+# CLIENT_ID = os.getenv("S60015476")
+# PASSWORD = os.getenv("2121")
+# TOTP_SECRET = os.getenv("XB6VHHUUTT7CEPQKCWFWXNSEVU")
 
 obj = SmartConnect(api_key=API_KEY)
 totp = pyotp.TOTP(TOTP_SECRET).now()
@@ -49,10 +49,46 @@ else:
 # STOCKS
 # =============================
 stocks = {
-    "RELIANCE": "2885",
+    # BANKING
     "HDFCBANK": "1333",
     "ICICIBANK": "4963",
-    "SBIN": "3045"
+    "AXISBANK": "5900",
+    "SBIN": "3045",
+    "KOTAKBANK": "1922",
+    "INDUSINDBK": "5258",
+
+    # ENERGY
+    "RELIANCE": "2885",
+    "ADANIENT": "25",
+    "ADANIPORTS": "15083",
+    "TATAPOWER": "3426",
+    "NTPC": "11630",
+    "POWERGRID": "14977",
+
+    # AUTO
+    "MARUTI": "10999",
+    "M&M": "2031",
+    "BAJAJ-AUTO": "16669",
+    "EICHERMOT": "910",
+
+    # METALS / INFRA
+    "LT": "11483",
+    "JSWSTEEL": "11723",
+    "TATASTEEL": "3499",
+    "HINDALCO": "1363",
+    "ULTRACEMCO": "11532",
+    "GRASIM": "1232",
+
+    # PHARMA
+    "SUNPHARMA": "3351",
+    "DRREDDY": "881",
+    "CIPLA": "694",
+    "DIVISLAB": "10940",
+    "LUPIN": "10440",
+
+    # TELECOM
+    "BHARTIARTL": "10604",
+    "JIOFIN": "18096"
 }
 
 # =============================
