@@ -25,14 +25,14 @@ def send_telegram(msg):
 # ANGEL LOGIN
 # =============================
 
-API_KEY = "Wq2v3ZKT"
-CLIENT_ID = "S60015476"
-PASSWORD = "2121"
-TOTP_SECRET = "XB6VHHUUTT7CEPQKCWFWXNSEVU"
-# API_KEY = os.getenv("Wq2v3ZKT")
-# CLIENT_ID = os.getenv("S60015476")
-# PASSWORD = os.getenv("2121")
-# TOTP_SECRET = os.getenv("XB6VHHUUTT7CEPQKCWFWXNSEVU")
+# API_KEY = "Wq2v3ZKT"
+# CLIENT_ID = "S60015476"
+# PASSWORD = "2121"
+# TOTP_SECRET = "XB6VHHUUTT7CEPQKCWFWXNSEVU"
+API_KEY = os.getenv("Wq2v3ZKT")
+CLIENT_ID = os.getenv("S60015476")
+PASSWORD = os.getenv("2121")
+TOTP_SECRET = os.getenv("XB6VHHUUTT7CEPQKCWFWXNSEVU")
 
 obj = SmartConnect(api_key=API_KEY)
 totp = pyotp.TOTP(TOTP_SECRET).now()
