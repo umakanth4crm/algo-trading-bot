@@ -1,5 +1,9 @@
 name: Run Trading Bot
-
+env:
+  API_KEY: ${{ secrets.API_KEY }}
+  CLIENT_ID: ${{ secrets.CLIENT_ID }}
+  PIN: ${{ secrets.PIN }}
+  TOTP_SECRET: ${{ secrets.TOTP_SECRET }}
 on:
   schedule:
     - cron: "*/5 3-10 * * 1-5"   # 8:30 AM – 3:30 PM IST
