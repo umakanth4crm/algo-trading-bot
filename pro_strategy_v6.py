@@ -37,7 +37,7 @@ TOTP_SECRET = os.getenv("TOTP_SECRET")
 obj = SmartConnect(api_key=API_KEY)
 totp = pyotp.TOTP(TOTP_SECRET).now()
 
-session = obj.generateSession(CLIENT_ID, PASSWORD, totp)
+session = obj.generateSession(CLIENT_ID, PIN, totp)
 
 if session['status']:
     print("✅ Login Success")
